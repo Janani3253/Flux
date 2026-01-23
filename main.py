@@ -29,5 +29,9 @@ def extract_company_to_excel(pdf_path: str, output_filename: str = "invoice_data
 
 
 if __name__ == "__main__":
-    pdf_path = "/location/to/pdf"
+    import sys
+    if len(sys.argv) < 2:
+        print("Usage: python main.py <path-to-pdf>")
+        sys.exit(1)
+    pdf_path = sys.argv[1]
     extract_company_to_excel(pdf_path)
