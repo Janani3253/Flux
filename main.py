@@ -4,21 +4,26 @@ from config.settings import OUTPUT_DIR
 
 
 def extract_company_to_excel(pdf_path: str, output_filename: str = "invoice_data.xlsx"):
-    """Extract company name from PDF and save to Excel."""
-    # Extract company name from PDF using context manager
+    """Extract invoice data from PDF and save to Excel."""
     with PDFExtractor(pdf_path) as extractor:
         company_name = extractor.get_company_name()
 
-    print(f"Extracted company name: {company_name}")
+    print(f"Extracted data:\n{company_name}")
 
     # Create Excel workbook
     wb = Workbook()
     ws = wb.active
     ws.title = "Invoice Data"
 
-    # Add headers and data
-    ws["A1"] = "Company Name"
-    ws["A2"] = company_name
+    # -------- CORRECT EXCEL WRITING --------
+    lines = company_name.splitlines()
+
+    headers = lines[0].split(" | ")
+    values = lines[1].split(" | ")
+
+    ws.append(headers)   
+    ws.append(values)    
+    # --------------------------------------
 
     # Save to output directory
     output_path = OUTPUT_DIR / output_filename
@@ -33,5 +38,5 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python main.py <path-to-pdf>")
         sys.exit(1)
-    pdf_path = sys.argv[1]
-    extract_company_to_excel(pdf_path)
+
+    extract_company_to_excel(sys.argv[1])
