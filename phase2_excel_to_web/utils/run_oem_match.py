@@ -14,10 +14,10 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-import subprocess
-import json
-import os
 import pandas as pd
+import pytest
+
+from phase2_excel_to_web.shared.runtime_store import RUNTIME_DATA
 
 try:
     from phase2_excel_to_web.utils.oem_matcher import attach_credentials
@@ -29,23 +29,20 @@ except Exception as exc:
 # ---------------- ARGUMENT PARSER ----------------
 def parse_args():
     p = argparse.ArgumentParser(description="Run OEM matcher and optionally trigger Playwright automation.")
+        
+    
 
-    p.add_argument("--invoices", default="data/output/invoice_data.xlsx", help="Path to invoices Excel file")
-    p.add_argument("--oem", default="data/input/oem_list.xlsx", help="Path to OEM list Excel file")
-    p.add_argument("--out", default="data/output/invoices_with_oem.xlsx", help="Output Excel file path")
-    p.add_argument("--invoice-col", default="OEM / Description", help="Column in invoices containing OEM/raw text")
-    p.add_argument("--oem-col", default="OEM", help="Column in OEM list with OEM names")
-    p.add_argument("--fuzz", type=int, default=85, help="Fuzzy matching threshold (0-100)")
-    p.add_argument("--debug", action="store_true", help="Print match scores and methods")
-
-    # optional flags
-    p.add_argument("--save-excel", action="store_true", help="Save matched output to Excel")
-    p.add_argument("--run-tests", action="store_true", help="Run Playwright pytest automation")
+    p.add_argument( "--invoices",default="data/output/invoicedata_as_per_tool.xlsx",help="Path to invoices Excel file")
+    p.add_argument("--oem",default="data/input/oem_list.xlsx",help="Path to OEM list Excel file")
+    p.add_argument("--out",default="data/output/invoices_with_oem.xlsx",help="Output Excel file path")
+    p.add_argument("--invoice-col",default="OEM / Description",help="Column in invoices containing OEM/raw text")
+    p.add_argument("--oem-col",default="OEM",help="Column in OEM list with OEM names")
+    p.add_argument("--fuzz",type=int,default=85,help="Fuzzy matching threshold (0-100)")
+    p.add_argument("--debug",action="store_true",help="Print match scores and methods")
+    p.add_argument("--save-excel",action="store_true",help="Save matched output to Excel")
+    p.add_argument("--run-tests",action="store_true",help="Run Playwright pytest automation")
 
     return p.parse_args()
-
-
-
 
 
 # ---------------- MAIN ----------------
@@ -64,21 +61,26 @@ def main(argv: list[str] | None = None) -> int:
         print(f"OEM list file not found: {oem_path}")
         return 2
 
+    # ---------------- LOAD EXCEL ----------------
     invoices = pd.read_excel(invoices_path)
     oem_df = pd.read_excel(oem_path)
 
     try:
+        # ---------------- DEBUG OEM MATCH ----------------
         if args.debug:
             from phase2_excel_to_web.utils.oem_matcher import match_oem
+
             details = match_oem(
                 invoices[args.invoice_col],
                 oem_df[args.oem_col],
                 fuzz_threshold=args.fuzz,
                 return_details=True
             )
+
             print("\nMatch details:\n")
             print(invoices[[args.invoice_col]].join(details))
 
+        # ---------------- OEM + CREDENTIAL ATTACH ----------------
         result = attach_credentials(
             invoices,
             oem_df,
@@ -91,43 +93,37 @@ def main(argv: list[str] | None = None) -> int:
         print("Error during attach_credentials:", exc)
         raise
 
-    # ---------------- SAVE EXCEL (OPTIONAL) ----------------
-    if args.save_excel:
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        result.to_excel(out_path, index=False)
-        print(f"Excel saved to: {out_path}")
+    # ---------------- ENSURE STATUS / ERROR ----------------
+    if "Status" not in result.columns:
+        result["Status"] = ""
 
-    # ---------------- PASS DATA TO PYTEST (JSON) ----------------
-    temp_dir = Path("data/temp")
-    temp_dir.mkdir(parents=True, exist_ok=True)
+    if "Error" not in result.columns:
+        result["Error"] = ""
 
-   # --- ORIGINAL LOGIN TASKS (UNCHANGED) ---
-    login_json = temp_dir / "login_tasks.json"
-    result.to_json(login_json, orient="records", indent=2)
-    os.environ["LOGIN_TASKS_FILE"] = str(login_json.resolve())
+    # ---------------- STORE FULL DATA IN RAM (EMULATOR STYLE) ----------------
+    # Playwright WILL use username / URL from here
+    RUNTIME_DATA["invoices"] = result.to_dict(orient="records")
 
-    # --- TEMP PLAYWRIGHT TASKS (HARD-CODED SAFE VALUES) ---
-
-    # --- USE PREBUILT PLAYWRIGHT TASKS JSON ---
-    playwright_json = temp_dir / "playwright_tasks.json"
-
-    if not playwright_json.exists():
-        raise FileNotFoundError(
-            f"Playwright tasks JSON not found at {playwright_json}. "
-            "You said this file is manually prepared."
-        )
-
-    os.environ["PLAYWRIGHT_TASKS_FILE"] = str(playwright_json.resolve())
-
-
-
-    # ---------------- RUN AUTOMATION ----------------
+    # ---------------- RUN PLAYWRIGHT ----------------
     if args.run_tests:
         print("\nRunning Playwright automation...\n")
-        subprocess.run(
-            ["pytest", "phase2_excel_to_web/tests", "-s"],
-            check=True
+
+        # pytest runs in SAME Python process → shared RAM
+        pytest.main(["phase2_excel_to_web/tests", "-s"])
+
+        # ---------------- WRITE BACK CLEAN EXCEL ----------------
+        final_df = pd.DataFrame(RUNTIME_DATA["invoices"])
+
+        #  REMOVE AUTOMATION-ONLY COLUMNS BEFORE SAVING
+        DROP_COLUMNS = ["username", "URL", "matched_oem","OEM"]
+
+        final_df = final_df.drop(
+            columns=[c for c in DROP_COLUMNS if c in final_df.columns],
+            errors="ignore"
         )
+
+        final_df.to_excel(invoices_path, index=False)
+        print("\nStatus / Error updated in Excel")
 
     unmatched = int(result["matched_oem"].isna().sum())
     print(f"\nOEM matching completed — Rows: {len(result)}, Unmatched: {unmatched}")

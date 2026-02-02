@@ -113,7 +113,16 @@ def attach_credentials(invoices_df: pd.DataFrame, oem_df: pd.DataFrame, invoice_
     invoices = invoices_df.copy()
     invoices['matched_oem'] = match_oem(invoices[invoice_col], oem_df[oem_col], fuzz_threshold=fuzz_threshold)
 
-    merged = invoices.merge(oem_df, left_on='matched_oem', right_on=oem_col, how='left', suffixes=('', '_oem'))
+    columns_to_drop = [col for col in oem_df.columns if col in invoices.columns]
+
+    clean_oem_df = oem_df.drop(columns=columns_to_drop)
+
+    merged = invoices.merge(
+        clean_oem_df,
+        left_on="matched_oem",
+        right_on=oem_col,
+        how="left"
+    )
     return merged
 
 

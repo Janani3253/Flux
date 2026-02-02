@@ -192,11 +192,11 @@ class PDFExtractor:
         return (
             "Invoice Number | Invoice Date | Mode / Terms of Payment | Seller Name | "
             "Buyer Name | Buyer Mobile | Product / Model | State | State Code | "
-            "OEM / Description | Total Invoice Amount | Item Code\n"
+            "OEM / Description | Total Invoice Amount | Item Code | Status | Error\n"
             f"{self.get_invoice_number()} | {self.get_invoice_date()} | "
             f"{self.get_account_type()} | {self.get_company_name_only()} | "
             f"{self.get_buyer_name()} | {self.get_mobile_number()} | "
             f"{self.get_model_name()} | {self.get_state_name()} | "
             f"{self.get_state_code()} | {self.get_description_of_goods()} | "
-            f"{self.get_total_amount()} | {self.get_item_code()}"
-        )
+            f"{self.get_total_amount()} | {self.get_item_code()} |  | "
+        ) 
