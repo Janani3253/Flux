@@ -110,13 +110,25 @@ class PDFExtractor:
         return line.strip()
 
     # buyer name
+
+
     def get_buyer_name(self) -> str:
         lines = [l.strip() for l in self.get_buyer_section().splitlines() if l.strip()]
+
         for line in lines:
-            clean = line.replace(",", "")
-            if re.fullmatch(r"[A-Z][A-Z\.]+", clean):
+            clean = line.replace(",", "").strip()
+
+            # CASE 1: Name with initials like S.DEEPAN or A.B.CHAITANYA
+            if re.fullmatch(r"(?:[A-Z]\.)+[A-Z]{3,}", clean):
+                # Remove all initials and return only full name
+                return clean.split(".")[-1]
+
+            # CASE 2: Normal full name without initials
+            if re.fullmatch(r"[A-Z]{4,}(?:\s+[A-Z]{2,})*", clean):
                 return clean
+
         return "Not Found"
+
 
     # mobile number
     def get_mobile_number(self) -> str:

@@ -5,9 +5,9 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 CRED_FILE = BASE_DIR / "config" / "credentials.properties"
 
 
-def get_password(username: str) -> str | None:
+def get_password(OEM: str) -> str | None:
     """
-    Fetch password for a given username from credentials.properties
+    Fetch password for a given OEM from credentials.properties
     """
 
     if not CRED_FILE.exists():
@@ -27,7 +27,7 @@ def get_password(username: str) -> str | None:
 
             key, value = line.split("=", 1)
 
-            if key.strip() == username.strip():
+            if key.strip() == OEM.strip():
                 return value.strip()
 
     return None

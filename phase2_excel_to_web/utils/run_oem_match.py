@@ -45,6 +45,9 @@ def parse_args():
     return p.parse_args()
 
 
+
+
+
 # ---------------- MAIN ----------------
 def main(argv: list[str] | None = None) -> int:
     args = parse_args() if argv is None else parse_args()
@@ -98,11 +101,25 @@ def main(argv: list[str] | None = None) -> int:
     temp_dir = Path("data/temp")
     temp_dir.mkdir(parents=True, exist_ok=True)
 
-    temp_json = temp_dir / "login_tasks.json"
-    result.to_json(temp_json, orient="records", indent=2)
+   # --- ORIGINAL LOGIN TASKS (UNCHANGED) ---
+    login_json = temp_dir / "login_tasks.json"
+    result.to_json(login_json, orient="records", indent=2)
+    os.environ["LOGIN_TASKS_FILE"] = str(login_json.resolve())
 
-    # export path for pytest
-    os.environ["LOGIN_TASKS_FILE"] = str(temp_json.resolve())
+    # --- TEMP PLAYWRIGHT TASKS (HARD-CODED SAFE VALUES) ---
+
+    # --- USE PREBUILT PLAYWRIGHT TASKS JSON ---
+    playwright_json = temp_dir / "playwright_tasks.json"
+
+    if not playwright_json.exists():
+        raise FileNotFoundError(
+            f"Playwright tasks JSON not found at {playwright_json}. "
+            "You said this file is manually prepared."
+        )
+
+    os.environ["PLAYWRIGHT_TASKS_FILE"] = str(playwright_json.resolve())
+
+
 
     # ---------------- RUN AUTOMATION ----------------
     if args.run_tests:

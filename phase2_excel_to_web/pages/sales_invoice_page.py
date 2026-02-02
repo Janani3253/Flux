@@ -1,23 +1,23 @@
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
+from datetime import datetime
+import os
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 class SalesInvoicePage:
     def __init__(self, page: Page):
         self.page = page
         self.sales_invoice_path = "/desk/sales-invoice"
-
         self.add_button = "button:has-text('Add Sales Invoice')"
-        
-        # IMPROVED SELECTOR: Added :visible to ensure we only target the active field
-        # and added a parent container to avoid the "2 elements found" conflict
         self.customer_input = ".form-layout:visible input[data-fieldname='customer']:visible"
-        
-        self.edit_item_btn = "#sales-invoice-__details > div:nth-child(6) > div > div > form > div > div > div.form-grid-container.column-limit-reached > div > div.grid-body > div.rows > div > div.data-row.row.m-0 > div:nth-child(8) > div > a"
-        
+        self.edit_item_btn="div[data-original-title='Edit']"
         self.item_code_input = "input[data-fieldname='item_code']"
         self.item_name_input = "textarea[data-fieldname='item_name'], input[data-fieldname='item_name']"
         self.rate_input = "input[data-fieldname='rate']"
-        
+        self.qty_input = "input[data-fieldname='qty'], input[data-fieldname='quantity']"
         self.save_button = "button:has-text('Save')"
+        self.posting_date_input = "input[data-fieldname='posting_date']"
+        self.due_date_input = "input[data-fieldname='due_date']"
+
 
     def open_sales_invoice(self):
         try:
@@ -37,41 +37,34 @@ class SalesInvoicePage:
         # Wait for the form container to actually be visible before proceeding
         self.page.wait_for_selector(".form-layout", state="visible", timeout=10000)
 
-   # Change this part in sales_invoice_page.py
-    def fill_invoice_form(self, buyer_name, item_code, item_description, total_amount):
-        # 1. Handle Customer
-        # S.DEEPANKUMAR -> DEEPANKUMAR
-        clean_name = buyer_name.split('.')[-1].strip()
-        # Use a short part of the name to trigger the search
-        search_term = clean_name[:5] 
 
-        print(f" Searching for Customer: {search_term}")
+   # Change this part in sales_invoice_page.py
+    def fill_invoice_form(self, buyer_name, item_code, item_description, quantity, rate):
+
+        # 1. Handle Customer
+        print(f" Searching for Customer: {buyer_name}")
         self.page.wait_for_selector(self.customer_input, state="visible")
+        
+        # Click and clear to ensure a fresh start
         self.page.click(self.customer_input)
         self.page.fill(self.customer_input, "") 
-        self.page.type(self.customer_input, search_term, delay=150)
         
-        # NEW STRATEGY: Wait for the specific list item to appear and click it
-        # This prevents selecting the wrong person or "Create New"
-        print(f" Waiting for dropdown option containing {clean_name}...")
-        suggestion_selector = f"ul.awesomplete li:has-text('{clean_name}')"
+        # Type the name fully WITHOUT interruption
+        self.page.type(self.customer_input, buyer_name, delay=150)
+        
+        # WAIT for the dropdown to appear BEFORE clicking anything else
+        suggestion_selector = f"ul.awesomplete li:has-text('{buyer_name}')"
         
         try:
-            self.page.wait_for_selector(suggestion_selector, timeout=5000)
+            # Increase timeout slightly to 7 seconds for slower ERP responses
+            self.page.wait_for_selector(suggestion_selector, timeout=7000)
             self.page.click(suggestion_selector)
-            print(f" Selected {clean_name} from dropdown")
-        except PlaywrightTimeoutError:
-            print(f" Specific suggestion not found, falling back to Enter key")
+            print(f" Successfully selected {buyer_name} from dropdown")
+        except:
+            print(f" Dropdown for {buyer_name} didn't appear, trying Enter key...")
             self.page.keyboard.press("Enter")
 
-        
-        # ERPNext specific: Wait for the search to trigger and dropdown to show
-        self.page.wait_for_timeout(2000) 
-        
-        # Press ArrowDown then Enter to select the first suggestion
-        # This is more reliable than clicking a specific text match
-        
-        self.page.wait_for_timeout(1000)
+        self.page.wait_for_timeout(3500) 
 
         # 2. Open Item Edit Tab/Modal
         print(" Clicking Grid Edit Button")
@@ -81,24 +74,116 @@ class SalesInvoicePage:
         # 3. Fill Details in the Item section
         print(f" Filling Item Code: {item_code}")
         self.page.wait_for_selector(self.item_code_input, state="visible")
-        # Clear and fill for safety
-        self.page.fill(self.item_code_input, "")
         self.page.fill(self.item_code_input, str(item_code))
-        
-        print(f" Filling Item Name (OEM): {item_description}")
-        self.page.fill(self.item_name_input, "")
+        self.page.keyboard.press("Tab") 
+
+        # CRITICAL: Allow ERP to fetch default price/quantity/taxes
+        print(" Waiting for ERP background fetch...")
+        self.page.wait_for_timeout(1500) 
+
+        # 5. Overwrite with YOUR values
+        print(f" Filling Item Name: {item_description}")
         self.page.fill(self.item_name_input, item_description)
 
-        print(f" Filling Rate (Amount): {total_amount}")
-        self.page.fill(self.rate_input, "")
-        self.page.fill(self.rate_input, str(total_amount))
-        
-        # Trigger an 'Enter' to make sure the value registers before Escaping
+        print(f" Forcing Quantity: {quantity}")
+        self.page.fill(self.qty_input, "") 
+        self.page.fill(self.qty_input, str(quantity))
+
+        print(f" Forcing Rate: {rate}")
+        self.page.fill(self.rate_input, "") # Clear ERP default price
+        self.page.fill(self.rate_input, str(rate))
+
+        # Finalize
         self.page.keyboard.press("Enter")
         self.page.wait_for_timeout(500)
         self.page.keyboard.press("Escape")
+        print(" Item details finalized")
         print(" Item details filled and modal closed")
 
-        # 4. Save Function (Commented out)
-        # print(" Clicking Save")
-        # self.page.click(self.save_button)
+
+    def upload_invoice_pdf(self, invoice_number: str):
+        print(" Opening Attachments panel")
+
+        # 1️ Ensure sidebar is visible
+        self.page.wait_for_selector(
+            ".layout-side-section.right",
+            timeout=20000
+        )
+
+        # 2️ Click the (+) Attachments button
+        self.page.locator(
+            "button.add-attachment-btn"
+        ).click()
+
+        print(" Attachments dialog opened")
+
+        # 3️ Wait for upload modal
+        self.page.wait_for_selector(
+            ".modal-dialog",
+            timeout=15000
+        )
+
+        # 4️ Resolve PDF path (smart search)
+        possible_paths = [
+            f"data/invoices/{invoice_number}.pdf",
+            f"data/input/{invoice_number}.pdf",
+            f"data/output/{invoice_number}.pdf",
+        ]
+
+        pdf_path = None
+        for path in possible_paths:
+            abs_path = os.path.abspath(path)
+            if os.path.exists(abs_path):
+                pdf_path = abs_path
+                break
+
+        if not pdf_path:
+            raise FileNotFoundError(
+                f"PDF not found for invoice {invoice_number}"
+            )
+
+        print(f" Uploading PDF: {pdf_path}")
+
+        # 5️ IMPORTANT: Do NOT wait for visibility
+        file_input = self.page.locator(
+            ".modal-dialog input[type='file']"
+        )
+
+        # Just attach the file
+        file_input.set_input_files(pdf_path)
+
+        # 6️ Click Upload button
+        self.page.locator(
+            ".modal-dialog button:has-text('Upload')"
+        ).click()
+
+        # 7️ Wait for upload to finish
+        self.page.wait_for_timeout(4000)
+
+        print(" PDF uploaded successfully")
+
+
+
+
+    def save_invoice(self):
+        print(" Clicking Save button")
+
+        # Give ERP time to finish calculations & background scripts
+        self.page.wait_for_timeout(2000)
+
+        save_btn = self.page.locator(
+            "#page-Sales\\ Invoice .standard-actions button:has-text('Save')"
+        )
+
+        # Wait for the REAL visible Save button
+        save_btn.wait_for(state="visible", timeout=20000)
+
+        # Click Save
+        save_btn.click()
+
+    # Wait for ERP save to complete
+        self.page.wait_for_timeout(6000)
+
+        print(" Invoice saved successfully")
+
+
