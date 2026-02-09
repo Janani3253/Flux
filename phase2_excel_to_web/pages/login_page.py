@@ -18,7 +18,9 @@ class LoginPage:
         self.page.goto(url, timeout=60000, wait_until="load")
 
     def login(self, username: str, password: str):
+        self.clear_cache()
         print(" Waiting for username field...")
+
         self.page.wait_for_selector(self.username_input, timeout=30000)
 
         print(" Entering username")
@@ -33,16 +35,27 @@ class LoginPage:
         #  Give ERPNext time to render popup
         self.page.wait_for_timeout(3000)
 
-        self._handle_permission_popup()
-
-    def _handle_permission_popup(self):
+    def clear_cache(self):
         """
-        Close ERPNext 'Not permitted' popup if it appears.
+        Clear cookies, localStorage, and sessionStorage for a fresh login state.
         """
         try:
-            if self.page.is_visible(self.permission_popup):
-                print("⚠ Permission popup detected, closing it")
-                self.page.click(self.popup_close_btn)
-                self.page.wait_for_timeout(1000)
-        except PlaywrightTimeoutError:
+            print(" Clearing cookies and storage before login")
+            # Clear cookies from the browser context
+            self.page.context.clear_cookies()
+        except Exception:
             pass
+
+        try:
+            # Clear local/session storage in the page
+            self.page.evaluate("() => { localStorage.clear(); sessionStorage.clear(); }")
+        except Exception:
+            pass
+
+        # short pause to ensure clearing takes effect
+        try:
+            self.page.wait_for_timeout(250)
+        except Exception:
+            pass    
+
+    
