@@ -23,6 +23,7 @@ export default function App() {
     to: endOfDay(new Date()),
   })
   const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string | null>(null)
 
   const invoices = useMemo(() => generateInvoices(), [])
 
@@ -55,10 +56,11 @@ export default function App() {
         const invoiceDate = new Date(invoice.invoiceDate)
         matchesDate = isWithinInterval(invoiceDate, { start: date.from, end: date.to })
       }
+      const matchesStatus = !statusFilter || invoice.status === statusFilter
       
-      return matchesSearch && matchesDate
+      return matchesSearch && matchesDate && matchesStatus
     })
-  }, [invoices, searchQuery, date])
+  }, [invoices, searchQuery, date, statusFilter])
 
 
   return (
@@ -73,7 +75,7 @@ export default function App() {
             date={date} 
             setDate={setDate} 
           />
-          <DashboardStats data={filteredInvoices} />
+          <DashboardStats data={filteredInvoices} onFilterStatus={setStatusFilter} activeStatus={statusFilter} />
           <DashboardCharts data={filteredInvoices} />
           <DashboardInvoiceTable data={filteredInvoices} />
         </div>

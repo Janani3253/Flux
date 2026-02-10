@@ -17,11 +17,11 @@ import {
 
 
 
-interface SalesOverviewChartProps {
+interface InvoiceByBrandChartProps {
   data: Record<string, string | number>[]
 }
 
-export function SalesOverviewChart({ data }: SalesOverviewChartProps) {
+export function InvoiceByBrandChart({ data }: InvoiceByBrandChartProps) {
   // Dynamically generate chart config based on data keys
   const chartConfig = React.useMemo(() => {
     if (!data || data.length === 0) return {} as ChartConfig
@@ -52,7 +52,7 @@ export function SalesOverviewChart({ data }: SalesOverviewChartProps) {
       return (
         <Card>
             <CardHeader>
-                <CardTitle>Sales Overview</CardTitle>
+                <CardTitle>Invoice by Brand</CardTitle>
             </CardHeader>
              <CardContent>
                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
@@ -66,7 +66,7 @@ export function SalesOverviewChart({ data }: SalesOverviewChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Sales Overview</CardTitle>
+        <CardTitle>Invoice by Brand</CardTitle>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="aspect-auto h-[200px] w-full">
@@ -92,6 +92,7 @@ export function SalesOverviewChart({ data }: SalesOverviewChartProps) {
                    stackId="a"
                    fill="#0470FD"
                    radius={radius}
+                   barSize={20}
                    className=""
                  />
                )

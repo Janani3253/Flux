@@ -1,5 +1,5 @@
 import { useMemo } from "react"
-import { SalesOverviewChart } from "@/components/charts/sales-overview-chart"
+import { InvoiceByBrandChart } from "@/components/charts/invoice-by-brand-chart"
 import { StatusOverviewChart } from "@/components/charts/status-overview-chart"
 import { format } from "date-fns"
 
@@ -10,39 +10,18 @@ interface DashboardChartsProps {
 export function DashboardCharts({ data }: DashboardChartsProps) {
   
   const salesChartData = useMemo(() => {
-    // Initialize all 12 months with 0
-    const allMonths = Array.from({ length: 12 }, (_, i) => {
-      const d = new Date(new Date().getFullYear(), i, 1)
-      return { 
-        name: format(d, 'MMM'), 
-        _monthIndex: i 
-      }
-    })
+    // Hardcoded OEM list to ensure consistent ordering and presence
+    const OEMS = ["MRF", "Bridgestone", "Ceat", "Apollo", "Michelin"]
 
-    const grouped = allMonths.reduce((acc, curr) => {
-      acc[curr.name] = { ...curr }
-      return acc
-    }, {} as Record<string, any>)
-
+    const counts: Record<string, number> = {}
     if (data && data.length > 0) {
-      data.forEach(curr => {
-        const date = new Date(curr.invoiceDate)
-        const month = format(date, 'MMM')
-        
-        // Only aggregating for months that match our buckets (should be all)
-        if (grouped[month]) {
-          // Calculate by count of invoices per seller, not total amount
-          grouped[month][curr.seller] = (grouped[month][curr.seller] || 0) + 1
-        }
+      data.forEach((curr) => {
+        const oem = curr.oem || (curr.seller && String(curr.seller).split(" ")[0]) || "Unknown"
+        counts[oem] = (counts[oem] || 0) + 1
       })
     }
 
-    return Object.values(grouped)
-        .sort((a: any, b: any) => a._monthIndex - b._monthIndex)
-        .map((item: any) => {
-          const { _monthIndex, ...rest } = item
-          return rest
-        }) as any[]
+    return OEMS.map((oem) => ({ name: oem, count: counts[oem] || 0 }))
   }, [data])
 
   const statusChartData = useMemo(() => {
@@ -70,7 +49,7 @@ export function DashboardCharts({ data }: DashboardChartsProps) {
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <SalesOverviewChart data={salesChartData} />
+      <InvoiceByBrandChart data={salesChartData} />
       <StatusOverviewChart data={statusChartData} />
     </div>
   )
