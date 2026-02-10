@@ -21,18 +21,18 @@ export function DashboardHeader({ period, setPeriod, date, setDate }: DashboardH
     <div className="flex items-center justify-between">
       <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
       <div className="flex items-center gap-2">
-        {period === "custom" && <DatePickerWithRange date={date} setDate={setDate} />}
+        {period === "Custom" && <DatePickerWithRange date={date} setDate={setDate} />}
         <Select value={period} onValueChange={(value) => value && setPeriod(value)}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Select period" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="this-week">This Week</SelectItem>
-            <SelectItem value="this-month">This Month</SelectItem>
-            <SelectItem value="last-month">Last Month</SelectItem>
-            <SelectItem value="this-year">This Year</SelectItem>
-            <SelectItem value="custom">Custom</SelectItem>
+            <SelectItem value="Today">Today</SelectItem>
+            <SelectItem value="This-week">This Week</SelectItem>
+            <SelectItem value="This-month">This Month</SelectItem>
+            <SelectItem value="Last-month">Last Month</SelectItem>
+            <SelectItem value="This-year">This Year</SelectItem>
+            <SelectItem value="Custom">Custom</SelectItem>
           </SelectContent>
         </Select>
       </div>

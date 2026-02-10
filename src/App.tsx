@@ -15,7 +15,7 @@ import type { DateRange } from "react-day-picker"
 import { startOfMonth, endOfMonth, subMonths, startOfYear, isWithinInterval, startOfDay, endOfDay, startOfWeek, endOfWeek } from "date-fns"
 
 export default function App() {
-  const [period, setPeriod] = useState("today")
+  const [period, setPeriod] = useState("Today")
   // Default to this month
   const [date, setDate] = useState<DateRange | undefined>({
     from: startOfDay(new Date()),
@@ -49,16 +49,16 @@ export default function App() {
 
   useEffect(() => {
     const today = new Date()
-    if (period === "today") {
+    if (period === "Today") {
       setDate({ from: startOfDay(today), to: endOfDay(today) })
-    } else if (period === "this-week") {
+    } else if (period === "This-week") {
       setDate({ from: startOfWeek(today), to: endOfWeek(today) })
-    } else if (period === "this-month") {
+    } else if (period === "This-month") {
       setDate({ from: startOfMonth(today), to: endOfMonth(today) })
-    } else if (period === "last-month") {
+    } else if (period === "Last-month") {
       const lastMonth = subMonths(today, 1)
       setDate({ from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) })
-    } else if (period === "this-year") {
+    } else if (period === "This-year") {
       setDate({ from: startOfYear(today), to: endOfDay(today) })
     }
   }, [period])
