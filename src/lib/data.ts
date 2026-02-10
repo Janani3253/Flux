@@ -1,49 +1,41 @@
 
-import { subDays, format } from "date-fns"
+import { format } from "date-fns"
+import { fetchInvoicesCsv } from "./sheets"
 
-export const generateInvoices = () => {
-  const statuses = ["Success", "Pending", "Failed"]
-  const sellers = ["MRF Tyres Ltd", "Bridgestone India", "Ceat Ltd", "Apollo Tyres", "Michelin India"]
-  
-  return Array.from({ length: 300 }).map((_, i) => {
-    // Generate dates within the last 365 days for realistic data
-    const date = subDays(new Date(), Math.floor(Math.random() * 365))
-    
-    return {
-      invoiceNumber: `INV-${String(i + 1).padStart(3, "0")}`,
-      invoiceDate: date.toISOString(), // Store as ISO string for easier parsing
-      invoiceDateDisplay: format(date, "yyyy-MM-dd"),
-      modeTerms: "Credit 30 Days",
-      seller: sellers[i % sellers.length],
-      buyer: `Buyer ${i + 1}`,
-      mobile: `+91 9${String(i).padStart(9, "0")}`,
-      product: "Tyre Product",
-      state: "Tamil Nadu",
-      stateCode: "33",
-      oem: sellers[i % sellers.length].split(" ")[0],
-      totalAmount: Math.floor(Math.random() * 10000 + 1000), 
-      totalAmountDisplay: `₹${(Math.random() * 10000 + 1000).toFixed(0)}`,
-      itemCode: `ITEM-${i + 1}`,
-      qty: Math.floor(Math.random() * 5) + 1,
-      rate: "₹2,000",
-      status: statuses[i % statuses.length],
-      error: statuses[i % statuses.length] === "Failed" ? "Network Error" : "-",
-      processedDate: format(date, "yyyy-MM-dd HH:mm a"),
+
+export async function loadInvoices() {
+  // If VITE_SHEET_ID is provided, try to fetch published CSV from Google Sheets
+  const sheetId = (import.meta.env as any).VITE_SHEET_ID
+  const sheetName = (import.meta.env as any).VITE_SHEET_NAME || "Sheet1"
+
+  if (sheetId) {
+    try {
+      const rows = await fetchInvoicesCsv(sheetId, sheetName)
+      // Normalize fields and ensure invoiceDate is ISO when possible
+      return rows.map((r: any) => ({
+        invoiceNumber: r.invoiceNumber || "",
+        invoiceDate: format(new Date(r.invoiceDate || Date.now()), "yyyy-MM-dd"),
+        modeTerms: r.modeTerms || "",
+        seller: r.seller || "",
+        buyer: r.buyer || "",
+        mobile: r.mobile || "",
+        product: r.product || "",
+        state: r.state || "",
+        stateCode: r.stateCode || "",
+        oem: r.oem || (r.seller ? String(r.seller).split(" ")[0] : ""),
+        totalAmount: r.totalAmount || 0,
+        totalAmountDisplay: r.totalAmountDisplay || `₹${r.totalAmount || 0}`,
+        itemCode: r.itemCode || "",
+        qty: r.qty || 0,
+        rate: r.rate || "",
+        status: r.status || "Pending",
+        error: r.error || "",
+        processedDate: format(new Date(r.processedDate || Date.now()), "yyyy-MM-dd"),
+      }))
+    } catch (err) {
+      console.warn("Failed to load sheet, falling back to mock invoices:", err)
     }
-  })
+  }
+
 }
 
-export const salesData = [
-  { month: "January", mrf: 186, bridgestone: 80, ceat: 100, apollo: 150 },
-  { month: "February", mrf: 305, bridgestone: 200, ceat: 150, apollo: 220 },
-  { month: "March", mrf: 237, bridgestone: 120, ceat: 180, apollo: 190 },
-  { month: "April", mrf: 73, bridgestone: 190, ceat: 120, apollo: 130 },
-  { month: "May", mrf: 209, bridgestone: 130, ceat: 140, apollo: 160 },
-  { month: "June", mrf: 214, bridgestone: 140, ceat: 160, apollo: 180 },
-  { month: "July", mrf: 186, bridgestone: 80, ceat: 100, apollo: 150 },
-  { month: "August", mrf: 305, bridgestone: 200, ceat: 150, apollo: 220 },
-  { month: "September", mrf: 237, bridgestone: 120, ceat: 180, apollo: 190 },
-  { month: "October", mrf: 73, bridgestone: 190, ceat: 120, apollo: 130 },
-  { month: "November", mrf: 209, bridgestone: 130, ceat: 140, apollo: 160 },
-  { month: "December", mrf: 214, bridgestone: 140, ceat: 160, apollo: 180 },
-]
